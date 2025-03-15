@@ -7,7 +7,7 @@ import dbConnect from '@/lib/mongoose';
 import { User } from '@/models/User';
 import { Estate } from '@/models/Estate';
 import { Task } from '@/models/Task';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 
 interface PopulatedUser {
     _id: Types.ObjectId;
@@ -54,12 +54,13 @@ export default async function DashboardPage() {
     }
 
     // Get user's estates (where they are a member or admin)
-    console.log('User ID:', user._id);
-    
+    // console.log('User ID:', user._id);
+
+    const userId = mongoose.Types.ObjectId.createFromHexString(String(user._id));
     const estates = await Estate.find({
         $or: [
-            { members: user._id },
-            { admins: user._id }
+            { members: userId },
+            { admins: userId }
         ]
     })
     .select('name address description admins members serviceOfferings')
@@ -68,7 +69,7 @@ export default async function DashboardPage() {
     .populate('serviceOfferings')
     .lean();
 
-    console.log('Found estates:', JSON.stringify(estates, null, 2));
+    // console.log('Found estates:', JSON.stringify(estates, null, 2));
 
     if (estates.length === 0) {
         // Let's also check all estates to see what's available
