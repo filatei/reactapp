@@ -7,6 +7,12 @@ export interface IEstate {
     description?: string;
     admins: Types.ObjectId[];
     members: Types.ObjectId[];
+    serviceOfferings: {
+        _id: Types.ObjectId;
+        name: string;
+        description: string;
+        price: number;
+    }[];
     joinRequests: {
         _id: Types.ObjectId;
         user: Types.ObjectId;
@@ -38,6 +44,11 @@ const estateSchema = new Schema<IEstate>({
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
+    }],
+    serviceOfferings: [{
+        name: { type: String, required: true },
+        description: { type: String, required: true },
+        price: { type: Number, required: true }
     }],
     joinRequests: [{
         user: {

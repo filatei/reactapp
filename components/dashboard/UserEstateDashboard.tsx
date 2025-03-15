@@ -1,27 +1,31 @@
 "use client";
 
 import { IEstate } from '@/models/Estate';
-import { ITask } from '@/models/Task';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FaBuilding, FaBell, FaUsers } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { TaskList } from '@/components/TaskList';
 
-interface SerializedEstate extends Omit<IEstate, '_id' | 'admins' | 'members'> {
+interface SerializedEstate extends Omit<IEstate, '_id' | 'admins' | 'members' | 'serviceOfferings'> {
     _id: string;
     admins: { _id: string; name: string; email: string; }[];
     members: { _id: string; name: string; email: string; }[];
+    serviceOfferings: { _id: string; name: string; description: string; price: number; }[];
 }
 
-interface SerializedTask extends Omit<ITask, '_id' | 'estate' | 'createdBy' | 'assignedTo' | 'createdAt' | 'updatedAt' | 'dueDate'> {
+interface SerializedTask {
     _id: string;
     estate: string;
     createdBy: { _id: string; name: string; email: string; };
     assignedTo?: { _id: string; name: string; email: string; } | null;
+    title: string;
+    description?: string;
+    status: 'todo' | 'in-progress' | 'done';
+    priority: 'low' | 'medium' | 'high';
+    dueDate?: string;
     createdAt: string;
     updatedAt: string;
-    dueDate?: string;
 }
 
 interface UserEstateDashboardProps {
@@ -113,6 +117,37 @@ export function UserEstateDashboard({ estates, tasks }: UserEstateDashboardProps
                                             </p>
                                         </CardContent>
                                     </Card>
+                                </div>
+
+                                <div className="mt-6 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-lg font-semibold">Available Services</h2>
+                                    </div>
+                                    {estate.serviceOfferings && estate.serviceOfferings.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {estate.serviceOfferings.map(service => (
+                                                <Card key={service._id}>
+                                                    <CardContent className="p-4">
+                                                        <h3 className="font-semibold">{service.name}</h3>
+                                                        <p className="text-sm text-muted-foreground mt-1">
+                                                            {service.description}
+                                                        </p>
+                                                        <p className="text-sm font-medium mt-2">
+                                                            Price: ${service.price}
+                                                        </p>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <Card>
+                                            <CardContent className="p-4">
+                                                <p className="text-sm text-muted-foreground">
+                                                    No services available
+                                                </p>
+                                            </CardContent>
+                                        </Card>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>

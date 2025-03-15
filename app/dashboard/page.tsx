@@ -53,8 +53,27 @@ export default async function DashboardPage() {
         redirect('/admin');
     }
 
-    // If user doesn't have an estate yet, show the join estate page
-    if (!user.estate) {
+    // Get user's estates (where they are a member or admin)
+    console.log('User ID:', user._id);
+    
+    const estates = await Estate.find({
+        $or: [
+            { members: user._id },
+            { admins: user._id }
+        ]
+    })
+    .select('name address description admins members serviceOfferings')
+    .populate<{ admins: PopulatedUser[] }>('admins', 'name email')
+    .populate<{ members: PopulatedUser[] }>('members', 'name email')
+    .populate('serviceOfferings')
+    .lean();
+
+    console.log('Found estates:', JSON.stringify(estates, null, 2));
+
+    if (estates.length === 0) {
+        // Let's also check all estates to see what's available
+        const allEstates = await Estate.find().lean();
+        console.log('All estates in system:', allEstates);
         return (
             <div className="container mx-auto px-4 py-8">
                 <h1 className="text-2xl font-bold mb-6">My Dashboard</h1>
@@ -74,21 +93,8 @@ export default async function DashboardPage() {
         );
     }
 
-    // Get user's estate
-    const estate = await Estate.findById(user.estate)
-        .select('name address description admins members')
-        .populate<{ admins: PopulatedUser[] }>('admins', 'name email')
-        .populate<{ members: PopulatedUser[] }>('members', 'name email')
-        .lean();
-
-    if (!estate) {
-        // If estate not found, clear user's estate reference and show join page
-        await User.findByIdAndUpdate(user._id, { $unset: { estate: 1 } });
-        redirect('/estates');
-    }
-
-    // Format estate data
-    const formattedEstate = {
+    // Format estates data
+    const formattedEstates = estates.map(estate => ({
         ...estate,
         _id: estate._id.toString(),
         admins: estate.admins.map(admin => ({
@@ -98,12 +104,16 @@ export default async function DashboardPage() {
         members: estate.members.map(member => ({
             ...member,
             _id: member._id.toString()
-        }))
-    };
+        })),
+        serviceOfferings: estate.serviceOfferings?.map(service => ({
+            ...service,
+            _id: service._id.toString()
+        })) || []
+    }));
 
-    // Get tasks for user's estate
+    // Get tasks for all user's estates
     const tasks = await Task.find({
-        estate: user.estate,
+        estate: { $in: estates.map(e => e._id) },
         $or: [
             { createdBy: user._id },
             { assignedTo: user._id }
@@ -138,7 +148,7 @@ export default async function DashboardPage() {
     return (
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-2xl font-bold mb-6">My Dashboard</h1>
-            <UserEstateDashboard estates={[formattedEstate]} tasks={tasks} />
+            <UserEstateDashboard estates={formattedEstates} tasks={tasks} />
         </div>
     );
 } 
