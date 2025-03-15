@@ -1,9 +1,15 @@
 import { ITask } from '@/models/Task';
 import { TaskCard } from './TaskCard';
-import { Types } from 'mongoose';
+
+interface SerializedTask extends Omit<ITask, '_id' | 'estate' | 'createdBy' | 'assignedTo'> {
+  _id: string;
+  estate: string;
+  createdBy: { _id: string; name: string; email: string; };
+  assignedTo?: { _id: string; name: string; email: string; } | null;
+}
 
 interface TaskListProps {
-  tasks: (ITask & { _id: Types.ObjectId })[];
+  tasks: SerializedTask[];
   view: 'grid' | 'list';
   onStatusChange?: (id: string, status: ITask['status']) => void;
 }
@@ -14,7 +20,7 @@ export function TaskList({ tasks, view, onStatusChange }: TaskListProps) {
       <div className="space-y-4">
         {tasks.map((task) => (
           <TaskCard
-            key={task._id.toString()}
+            key={task._id}
             task={task}
             onStatusChange={onStatusChange}
           />
@@ -27,7 +33,7 @@ export function TaskList({ tasks, view, onStatusChange }: TaskListProps) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {tasks.map((task) => (
         <TaskCard
-          key={task._id.toString()}
+          key={task._id}
           task={task}
           onStatusChange={onStatusChange}
         />

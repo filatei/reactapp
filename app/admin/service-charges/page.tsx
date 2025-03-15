@@ -4,23 +4,13 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { ServiceChargeList } from '@/components/admin/ServiceChargeList';
 import { ServiceChargeForm } from '@/components/admin/ServiceChargeForm';
+import { PageTransition } from '@/components/ui/page-transition';
+import { Suspense } from 'react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import dbConnect from '@/lib/mongoose';
 import { ServiceCharge } from '@/models/ServiceCharge';
-import { IUser } from '@/models/User';
-
-interface ServiceChargeWithUsers {
-    _id: string;
-    title: string;
-    description: string;
-    amount: number;
-    type: 'annual' | 'incidental';
-    category: 'maintenance' | 'repairs' | 'utilities' | 'security' | 'other';
-    status: 'active' | 'paid' | 'cancelled';
-    dueDate?: string;
-    createdBy: IUser;
-    affectedUsers: IUser[];
-    paidBy: IUser[];
-}
+import { ServiceChargeWithUsers } from '@/types/service-charge';
+import { Types } from 'mongoose';
 
 export const metadata: Metadata = {
     title: 'Manage Service Charges | Admin Dashboard',
@@ -40,25 +30,38 @@ export default async function ServiceChargesPage() {
         .populate('affectedUsers', 'name email')
         .populate('paidBy', 'name email')
         .sort({ createdAt: -1 })
-        .lean()) as unknown as ServiceChargeWithUsers[];
+        .lean()
+        .then(charges => charges.map(charge => ({
+            ...charge,
+            _id: charge._id as Types.ObjectId,
+            dueDate: charge.dueDate ? new Date(charge.dueDate) : undefined,
+            createdAt: new Date(charge.createdAt),
+            updatedAt: new Date(charge.updatedAt)
+        })))) as unknown as ServiceChargeWithUsers[];
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-2xl font-bold">Service Charges</h1>
-            </div>
+        <PageTransition>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-2xl font-bold text-foreground">Service Charges</h1>
+                </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div>
-                    <h2 className="text-xl font-semibold mb-4">Add New Service Charge</h2>
-                    <ServiceChargeForm />
-                </div>
-                
-                <div>
-                    <h2 className="text-xl font-semibold mb-4">Service Charges List</h2>
-                    <ServiceChargeList serviceCharges={serviceCharges} />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-card rounded-lg shadow-sm p-6">
+                        <h2 className="text-xl font-semibold mb-4 text-foreground">Add New Service Charge</h2>
+                        <Suspense fallback={<LoadingSpinner />}>
+                            <ServiceChargeForm />
+                        </Suspense>
+                    </div>
+                    
+                    <div className="bg-card rounded-lg shadow-sm p-6">
+                        <h2 className="text-xl font-semibold mb-4 text-foreground">Service Charges List</h2>
+                        <Suspense fallback={<LoadingSpinner />}>
+                            <ServiceChargeList serviceCharges={serviceCharges} />
+                        </Suspense>
+                    </div>
                 </div>
             </div>
-        </div>
+        </PageTransition>
     );
 } 

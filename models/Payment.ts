@@ -1,8 +1,21 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
+import { IUser } from './User';
 
-const paymentSchema = new mongoose.Schema({
+export interface IPayment extends Document {
+    userId: Types.ObjectId | IUser;
+    amount: number;
+    currency: string;
+    status: 'pending' | 'completed' | 'failed';
+    provider: string;
+    reference: string;
+    metadata?: Record<string, unknown>;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const PaymentSchema = new Schema({
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
@@ -12,32 +25,32 @@ const paymentSchema = new mongoose.Schema({
     },
     currency: {
         type: String,
-        default: 'USD'
+        default: 'NGN'
     },
     status: {
         type: String,
-        enum: ['pending', 'completed', 'failed', 'refunded'],
+        enum: ['pending', 'completed', 'failed'],
         default: 'pending'
     },
-    paymentMethod: {
-        type: String,
-        enum: ['credit_card', 'bank_transfer', 'crypto', 'paypal', 'stripe'],
-        required: true
-    },
-    serviceType: {
+    provider: {
         type: String,
         required: true
     },
-    description: String,
-    transactionId: String,
-    paymentDate: Date,
-    dueDate: Date,
+    reference: {
+        type: String,
+        required: true,
+        unique: true
+    },
     metadata: {
-        type: Map,
-        of: mongoose.Schema.Types.Mixed
+        type: Schema.Types.Mixed
     }
 }, {
     timestamps: true
 });
 
-export const Payment = mongoose.models.Payment || mongoose.model('Payment', paymentSchema); 
+// Create indexes
+PaymentSchema.index({ userId: 1 });
+// PaymentSchema.index({ reference: 1 }, { unique: true });
+PaymentSchema.index({ status: 1 });
+
+export const Payment = mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema); 

@@ -5,8 +5,16 @@ import { redirect } from 'next/navigation';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import dbConnect from '@/lib/mongoose';
 import { User, IUser } from '@/models/User';
-import { Payment } from '@/models/Payment';
-import { ServiceCharge } from '@/models/ServiceCharge';
+import { Payment, IPayment } from '@/models/Payment';
+import { ServiceCharge, IServiceCharge } from '@/models/ServiceCharge';
+import { toPlainObject } from '@/lib/utils/mongoose';
+import { Types } from 'mongoose';
+
+interface OutstandingPayment {
+    _id: Types.ObjectId;
+    totalAmount: number;
+    user: IUser;
+}
 
 export const metadata: Metadata = {
     title: 'Admin Dashboard | ReactiveApp',
@@ -21,22 +29,24 @@ export default async function AdminPage() {
     }
 
     await dbConnect();
-    const currentUser = await User.findOne({ email: session.user.email }).lean() as IUser | null;
+    const currentUser = await User.findOne({ email: session.user.email }).lean();
 
-    if (!currentUser || currentUser.role !== 'admin') {
+    if (!currentUser || !currentUser.role || currentUser.role !== 'admin') {
         redirect('/');
     }
 
     // Fetch all users
     const users = await User.find({ _id: { $ne: currentUser._id } })
         .select('-password')
-        .lean() as IUser[];
+        .lean()
+        .then(docs => toPlainObject(docs) as unknown as IUser[]);
 
     // Fetch all payments
     const payments = await Payment.find()
         .populate('userId', 'name email')
         .sort({ createdAt: -1 })
-        .lean();
+        .lean()
+        .then(docs => toPlainObject(docs) as unknown as IPayment[]);
 
     // Fetch all service charges
     const serviceCharges = await ServiceCharge.find()
@@ -44,18 +54,19 @@ export default async function AdminPage() {
         .populate('affectedUsers', 'name email')
         .populate('paidBy', 'name email')
         .sort({ createdAt: -1 })
-        .lean();
+        .lean()
+        .then(docs => toPlainObject(docs) as unknown as IServiceCharge[]);
 
     // Calculate payment statistics
     const paymentStats = {
-        total: payments.reduce((sum, p) => sum + p.amount, 0),
-        pending: payments.filter(p => p.status === 'pending').length,
-        completed: payments.filter(p => p.status === 'completed').length,
-        failed: payments.filter(p => p.status === 'failed').length,
+        total: payments.reduce((sum: number, p: IPayment) => sum + p.amount, 0),
+        pending: payments.filter((p: IPayment) => p.status === 'pending').length,
+        completed: payments.filter((p: IPayment) => p.status === 'completed').length,
+        failed: payments.filter((p: IPayment) => p.status === 'failed').length,
     };
 
     // Get users with outstanding payments
-    const usersWithOutstandingPayments = await Payment.aggregate([
+    const usersWithOutstandingPayments = await Payment.aggregate<OutstandingPayment>([
         {
             $match: { status: 'pending' }
         },
@@ -76,7 +87,7 @@ export default async function AdminPage() {
         {
             $unwind: '$user'
         }
-    ]);
+    ]).then(docs => toPlainObject(docs));
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

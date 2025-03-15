@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/layout/header";
 import Sidebar from "@/components/layout/sidebar";
+import { MobileNav } from "@/components/layout/MobileNav";
 import { SessionProvider } from "next-auth/react";
 
 export default function ClientLayout({
@@ -17,11 +18,14 @@ export default function ClientLayout({
         <div className="relative flex min-h-screen flex-col">
           <Header />
           <div className="flex flex-1">
-            <Sidebar />
-            <main className="flex-1 overflow-auto">
+            <div className="hidden md:block">
+              <Sidebar />
+            </div>
+            <main className="flex-1 overflow-auto pb-16 md:pb-0">
               {children}
             </main>
           </div>
+          <MobileNav />
         </div>
         <Toaster />
       </ThemeProvider>

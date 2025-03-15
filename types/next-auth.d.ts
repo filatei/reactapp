@@ -1,17 +1,22 @@
 import 'next-auth';
+import { Types } from 'mongoose';
 
 declare module 'next-auth' {
     interface User {
         id: string;
         email: string;
         name?: string;
-        role?: string;
+        role?: 'user' | 'admin' | 'estate_admin';
+        estate?: string;
     }
 
     interface Session {
-        user: User & {
+        user: {
             id: string;
-            role?: string;
+            name?: string | null;
+            email?: string | null;
+            role?: 'user' | 'admin' | 'estate_admin';
+            estate?: string;
         };
     }
 }

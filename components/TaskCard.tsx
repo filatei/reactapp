@@ -1,16 +1,24 @@
+"use client";
+
 import { useState } from 'react';
 import { ITask } from '@/models/Task';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { Types } from 'mongoose';
 import Link from 'next/link';
-import { Pencil, Trash } from 'lucide-react';
+import { Pencil, Trash, CheckCircle, Circle } from 'lucide-react';
 import { TaskStatusModal } from './TaskStatusModal';
 
+interface SerializedTask extends Omit<ITask, '_id' | 'estate' | 'createdBy' | 'assignedTo'> {
+  _id: string;
+  estate: string;
+  createdBy: { _id: string; name: string; email: string; };
+  assignedTo?: { _id: string; name: string; email: string; } | null;
+}
+
 interface TaskCardProps {
-  task: ITask & { _id: Types.ObjectId };
+  task: SerializedTask;
   onStatusChange?: (id: string, status: ITask['status']) => void;
 }
 
@@ -28,10 +36,22 @@ const priorityColors = {
 
 export function TaskCard({ task, onStatusChange }: TaskCardProps) {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleStatusChange = () => {
+    if (onStatusChange) {
+      const newStatus = task.status === 'done' ? 'todo' : 'done';
+      onStatusChange(task._id, newStatus);
+    }
+  };
 
   return (
     <>
-      <Card className="cursor-pointer hover:shadow-md transition-shadow">
+      <Card
+        className="relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <CardHeader className="space-y-2">
           <div className="flex justify-between items-start">
             <CardTitle className="text-xl font-semibold">{task.title}</CardTitle>
@@ -68,6 +88,18 @@ export function TaskCard({ task, onStatusChange }: TaskCardProps) {
             <p>Due: {format(new Date(task.dueDate), 'MMM d, yyyy')}</p>
           )}
         </CardFooter>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleStatusChange}
+          className={isHovered ? 'opacity-100' : 'opacity-0'}
+        >
+          {task.status === 'done' ? (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          ) : (
+            <Circle className="h-4 w-4" />
+          )}
+        </Button>
       </Card>
 
       <TaskStatusModal
@@ -75,7 +107,7 @@ export function TaskCard({ task, onStatusChange }: TaskCardProps) {
         isOpen={isStatusModalOpen}
         onClose={() => setIsStatusModalOpen(false)}
         onStatusChange={(newStatus) => {
-          onStatusChange?.(task._id.toString(), newStatus);
+          onStatusChange?.(task._id, newStatus);
         }}
       />
     </>

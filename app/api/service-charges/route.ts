@@ -1,34 +1,53 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { ServiceCharge } from '@/models/ServiceCharge';
 import dbConnect from '@/lib/mongoose';
-import { User, IUser } from '@/models/User';
+import { ServiceCharge } from '@/models/ServiceCharge';
+import { User } from '@/models/User';
 
 export async function GET() {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
+        if (!session?.user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         await dbConnect();
 
-        const user = await User.findOne({ email: session.user.email }).lean() as IUser | null;
+        // Get user to check role and estate
+        const user = await User.findOne({ email: session.user.email });
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // If user is admin, return all charges, otherwise only return charges affecting this user
-        const query = user.role === 'admin'
-            ? {}
-            : { affectedUsers: user._id };
+        // If user doesn't belong to an estate, they can't see any service charges
+        if (!user.estate) {
+            return NextResponse.json([]);
+        }
 
-        const serviceCharges = await ServiceCharge.find(query)
-            .populate('createdBy', 'name email')
-            .populate('affectedUsers', 'name email')
-            .populate('paidBy', 'name email')
-            .sort({ createdAt: -1 });
+        let serviceCharges;
+        if (user.role === 'admin' || user.role === 'estate_admin') {
+            // Admins and estate admins can see all service charges in their estate
+            serviceCharges = await ServiceCharge.find({ estate: user.estate })
+                .populate('createdBy', 'name email')
+                .populate('affectedUsers', 'name email')
+                .populate('paidBy', 'name email')
+                .populate('estate', 'name address')
+                .sort({ createdAt: -1 })
+                .lean();
+        } else {
+            // Regular users can only see service charges that affect them
+            serviceCharges = await ServiceCharge.find({
+                estate: user.estate,
+                affectedUsers: user._id
+            })
+                .populate('createdBy', 'name email')
+                .populate('affectedUsers', 'name email')
+                .populate('paidBy', 'name email')
+                .populate('estate', 'name address')
+                .sort({ createdAt: -1 })
+                .lean();
+        }
 
         return NextResponse.json(serviceCharges);
     } catch (error) {
@@ -43,34 +62,49 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
+        if (!session?.user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        await dbConnect();
+        const body = await request.json();
+        const { title, description, amount, type, category, dueDate, affectedUsers } = body;
 
-        const user = await User.findOne({ email: session.user.email }).lean() as IUser | null;
-        if (!user) {
+        await dbConnect();
+        const currentUser = await User.findOne({ email: session.user.email });
+        if (!currentUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        if (user.role !== 'admin') {
-            return NextResponse.json({ error: 'Only admins can create service charges' }, { status: 403 });
+        // Check if user is admin or estate admin
+        if (currentUser.role !== 'admin' && currentUser.role !== 'estate_admin') {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
-        const body = await request.json();
+        // Check if user belongs to an estate
+        if (!currentUser.estate) {
+            return NextResponse.json({ error: 'User must belong to an estate to create service charges' }, { status: 400 });
+        }
+
         const serviceCharge = await ServiceCharge.create({
-            ...body,
-            createdBy: user._id,
-            status: 'active'
+            title,
+            description,
+            amount,
+            type,
+            category,
+            dueDate,
+            estate: currentUser.estate,
+            createdBy: currentUser._id,
+            affectedUsers,
+            status: 'active',
         });
 
-        const populatedCharge = await ServiceCharge.findById(serviceCharge._id)
+        const populatedServiceCharge = await ServiceCharge.findById(serviceCharge._id)
             .populate('createdBy', 'name email')
             .populate('affectedUsers', 'name email')
-            .populate('paidBy', 'name email');
+            .populate('estate', 'name address')
+            .lean();
 
-        return NextResponse.json(populatedCharge, { status: 201 });
+        return NextResponse.json(populatedServiceCharge, { status: 201 });
     } catch (error) {
         console.error('Error creating service charge:', error);
         return NextResponse.json(

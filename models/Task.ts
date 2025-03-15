@@ -7,11 +7,9 @@ export interface ITask {
     status: 'todo' | 'in-progress' | 'done';
     priority: 'low' | 'medium' | 'high';
     dueDate?: Date;
-    createdBy: mongoose.Types.ObjectId | string;
-    assignedTo?: {
-        name: string;
-        email: string;
-    };
+    estate: Types.ObjectId;
+    createdBy: Types.ObjectId;
+    assignedTo?: Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -30,10 +28,15 @@ const taskSchema = new mongoose.Schema({
         default: 'medium'
     },
     dueDate: { type: Date },
+    estate: { type: mongoose.Schema.Types.ObjectId, ref: 'Estate', required: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, {
     timestamps: true
 });
+
+// Add compound indexes for better query performance
+taskSchema.index({ estate: 1, createdBy: 1 });
+taskSchema.index({ estate: 1, status: 1 });
 
 export const Task = mongoose.models.Task || mongoose.model<ITask>('Task', taskSchema); 

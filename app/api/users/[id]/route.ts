@@ -10,27 +10,24 @@ export async function PATCH(
 ) {
     try {
         const session = await getServerSession(authOptions);
+
         if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
         await dbConnect();
 
-        // Check if the current user is an admin
-        const currentUser = await User.findOne({ email: session.user.email }).lean() as IUser | null;
+        // Check if user is admin
+        const currentUser = await User.findOne({ email: session.user.email });
         if (!currentUser || currentUser.role !== 'admin') {
-            return NextResponse.json({ error: 'Only admins can update user roles' }, { status: 403 });
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
-        const body = await request.json();
-        const { role } = body;
-
-        if (!role || !['user', 'admin'].includes(role)) {
-            return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
-        }
+        const { role } = await request.json();
+        const { id } = await params;
 
         const user = await User.findByIdAndUpdate(
-            params.id,
+            id,
             { role },
             { new: true }
         ).lean() as IUser | null;
@@ -42,9 +39,6 @@ export async function PATCH(
         return NextResponse.json(user);
     } catch (error) {
         console.error('Error updating user:', error);
-        return NextResponse.json(
-            { error: 'Failed to update user' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
     }
 } 

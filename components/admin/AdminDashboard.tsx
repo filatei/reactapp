@@ -20,7 +20,8 @@ import { UserList } from './UserList';
 import { ServiceChargeList } from './ServiceChargeList';
 import { PaymentList } from './PaymentList';
 import { NotificationForm } from './NotificationForm';
-import { CreditCard, Users, Bell, AlertCircle } from 'lucide-react';
+import { CreditCard, Users, Bell, AlertCircle, Building2 } from 'lucide-react';
+import Link from 'next/link';
 
 interface AdminDashboardProps {
     users: IUser[];
@@ -52,6 +53,12 @@ export function AdminDashboard({
                 <TabsTrigger value="payments">Payments</TabsTrigger>
                 <TabsTrigger value="service-charges">Service Charges</TabsTrigger>
                 <TabsTrigger value="notifications">Notifications</TabsTrigger>
+                <TabsTrigger value="estates" asChild>
+                    <Link href="/admin/estates" className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Estates
+                    </Link>
+                </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">

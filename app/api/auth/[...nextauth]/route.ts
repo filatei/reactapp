@@ -1,57 +1,3 @@
-// import NextAuth, { NextAuthOptions } from "next-auth";
-// import GoogleProvider from "next-auth/providers/google";
-// import GithubProvider from "next-auth/providers/github";
-// import EmailProvider from "next-auth/providers/email";
-// import { MongoDBAdapter } from "@auth/mongodb-adapter";
-// import clientPromise from "@/lib/mongodb";
-// import { Adapter } from "next-auth/adapters";
-
-// export const authOptions: NextAuthOptions = {
-//     adapter: MongoDBAdapter(clientPromise) as Adapter,
-//     providers: [
-//         GoogleProvider({
-//             clientId: process.env.GOOGLE_CLIENT_ID!,
-//             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-//         }),
-//         GithubProvider({
-//             clientId: process.env.GITHUB_ID!,
-//             clientSecret: process.env.GITHUB_SECRET!,
-//         }),
-//         EmailProvider({
-//             server: {
-//                 host: process.env.EMAIL_SERVER_HOST,
-//                 port: Number(process.env.EMAIL_SERVER_PORT),
-//                 auth: {
-//                     user: process.env.EMAIL_SERVER_USER,
-//                     pass: process.env.EMAIL_SERVER_PASSWORD,
-//                 },
-//             },
-//             from: process.env.EMAIL_FROM,
-//         }),
-//     ],
-//     pages: {
-//         signIn: '/auth/signin',
-//         error: '/auth/error',
-//         verifyRequest: '/auth/verify',
-//     },
-//     secret: process.env.NEXTAUTH_SECRET,
-//     session: {
-//         strategy: 'jwt',
-//     },
-//     callbacks: {
-//         async session({ session, token }) {
-//             if (session?.user) {
-//                 session.user.id = token.sub!;
-//             }
-//             return session;
-//         }
-//     },
-// };
-
-// const handler = NextAuth(authOptions);
-
-// export { handler as GET, handler as POST }; 
-
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
@@ -81,7 +27,7 @@ const handler = NextAuth({
     ],
     secret: process.env.NEXTAUTH_SECRET,
     pages: {
-        signIn: "/login",
+        signIn: "/auth/signin",
     },
     callbacks: {
         async signIn({ user, account }) {
@@ -99,7 +45,15 @@ const handler = NextAuth({
                         name: user.name,
                         provider: account.provider,
                         providerId: user.id,
+                        role: 'user', // Set default role
                     });
+                }
+
+                // Set admin role for specific email addresses
+                const ADMIN_EMAILS = ['filatei@gtsng.com', 'filatei@gmail.com', 'filatei@torama.ng'];
+                if (ADMIN_EMAILS.includes(user.email) && dbUser.role !== 'admin') {
+                    dbUser.role = 'admin';
+                    await dbUser.save();
                 }
 
                 return true;
@@ -108,7 +62,32 @@ const handler = NextAuth({
                 return false;
             }
         },
-        async redirect({ baseUrl }) {
+        async jwt({ token, user }) {
+            if (user) {
+                await dbConnect();
+                const dbUser = await User.findOne({ email: user.email });
+                if (dbUser) {
+                    token.role = dbUser.role;
+                    token.id = dbUser._id.toString();
+                    token.estate = dbUser.estate?.toString();
+                }
+            }
+            return token;
+        },
+        async session({ session, token }) {
+            if (session.user) {
+                session.user.id = token.id as string;
+                session.user.role = token.role as 'user' | 'admin';
+                session.user.estate = token.estate as string | undefined;
+            }
+            return session;
+        },
+        async redirect({ url, baseUrl }) {
+            // Always allow callback URLs
+            if (url.startsWith(baseUrl + "/api/auth")) {
+                return url;
+            }
+            // Default to dashboard
             return baseUrl + "/dashboard";
         },
     },

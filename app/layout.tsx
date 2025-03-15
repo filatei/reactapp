@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "../components/layout/ClientLayout";
 import { Providers } from "./providers";
+import { Suspense } from "react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,7 +22,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen bg-background font-sans antialiased`}>
         <Providers>
-          <ClientLayout>{children}</ClientLayout>
+          <Suspense fallback={<LoadingSpinner />}>
+            <ClientLayout>{children}</ClientLayout>
+          </Suspense>
         </Providers>
       </body>
     </html>

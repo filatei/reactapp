@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { IUser } from '@/models/User';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
@@ -50,6 +51,7 @@ export function NotificationForm({ users }: NotificationFormProps) {
                 description: 'Notification sent successfully',
             });
 
+            // Reset form
             setFormData({
                 title: '',
                 message: '',
@@ -69,35 +71,37 @@ export function NotificationForm({ users }: NotificationFormProps) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-                <label className="text-sm font-medium">Title</label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
                 <Input
+                    id="title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Notification title"
                     required
                 />
             </div>
 
-            <div>
-                <label className="text-sm font-medium">Message</label>
+            <div className="space-y-2">
+                <Label htmlFor="message">Message</Label>
                 <Textarea
+                    id="message"
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    placeholder="Notification message"
                     required
                 />
             </div>
 
-            <div>
-                <label className="text-sm font-medium">Send to</label>
+            <div className="space-y-2">
+                <Label htmlFor="type">Send To</Label>
                 <Select
                     value={formData.type}
-                    onValueChange={(value) => setFormData({ ...formData, type: value as 'all' | 'selected' })}
+                    onValueChange={(value: 'all' | 'selected') => 
+                        setFormData({ ...formData, type: value, selectedUsers: [] })
+                    }
                 >
                     <SelectTrigger>
-                        <SelectValue placeholder="Select recipients" />
+                        <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Users</SelectItem>
@@ -107,11 +111,18 @@ export function NotificationForm({ users }: NotificationFormProps) {
             </div>
 
             {formData.type === 'selected' && (
-                <div>
-                    <label className="text-sm font-medium">Select Users</label>
+                <div className="space-y-2">
+                    <Label>Select Users</Label>
                     <Select
-                        value={formData.selectedUsers[0]}
-                        onValueChange={(value) => setFormData({ ...formData, selectedUsers: [value] })}
+                        value={formData.selectedUsers[0] || ''}
+                        onValueChange={(value) => {
+                            if (!formData.selectedUsers.includes(value)) {
+                                setFormData({
+                                    ...formData,
+                                    selectedUsers: [...formData.selectedUsers, value],
+                                });
+                            }
+                        }}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Select users" />
@@ -124,6 +135,34 @@ export function NotificationForm({ users }: NotificationFormProps) {
                             ))}
                         </SelectContent>
                     </Select>
+                    {formData.selectedUsers.length > 0 && (
+                        <div className="mt-2">
+                            <Label>Selected Users:</Label>
+                            <ul className="mt-1 space-y-1">
+                                {formData.selectedUsers.map((userId) => {
+                                    const user = users.find(u => u._id.toString() === userId);
+                                    return (
+                                        <li key={userId} className="flex items-center justify-between">
+                                            <span>{user?.name} ({user?.email})</span>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setFormData({
+                                                        ...formData,
+                                                        selectedUsers: formData.selectedUsers.filter(id => id !== userId),
+                                                    });
+                                                }}
+                                            >
+                                                Remove
+                                            </Button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             )}
 

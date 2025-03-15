@@ -9,8 +9,15 @@ import {
 import { Button } from "@/components/ui/button"
 import { ITask } from "@/models/Task"
 
+interface SerializedTask extends Omit<ITask, '_id' | 'estate' | 'createdBy' | 'assignedTo'> {
+  _id: string;
+  estate: string;
+  createdBy: { _id: string; name: string; email: string; };
+  assignedTo?: { _id: string; name: string; email: string; } | null;
+}
+
 interface TaskStatusModalProps {
-  task: ITask;
+  task: SerializedTask;
   isOpen: boolean;
   onClose: () => void;
   onStatusChange: (newStatus: ITask['status']) => void;
